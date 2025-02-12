@@ -1,0 +1,42 @@
+core:
+  role_choices:
+    - ['admin', 'Admin']
+    - ['manager', 'Manager']
+    - ['viewer', 'Viewer']
+
+  payment_status_choices:
+    - ['pending', 'Pending']
+    - ['completed', 'Completed']
+    - ['failed', 'Failed']
+    - ['canceled', 'Canceled']
+    - ['reversed', 'Reversed']
+
+  asset_type_choices:
+    - ['vehicle', 'Vehicle']
+    - ['hotel', 'Hotel']
+
+  event_type_choices:
+    - ['access', 'Access']
+    - ['location', 'Location']
+    - ['occupancy', 'Occupancy']
+    - ['electricity', 'Electricity']
+    - ['ignition', 'Ignition']
+    - ['passenger_count', 'Passenger Count']
+  transaction_reference_prefix: TRYKEY
+  frontend:
+    payment_redirect_url: localhost:8000/confirm
+  transfer_policy_config:
+    min_amount: 50  # in naira
+    max_amount: 10_000_000  # in naira
+    bank_charges_ranges:
+      - range: [0, 5000]  # [from_amount, to_amount]
+        charge: 10  # price in naira
+      - range: [5_000, 50_000]
+        charge: 25
+      - range: [50_000, 100_000_000]  # an arbitrarily large transfer amount representing inf
+        charge: 50
+    pending_transfer_expiry: 1200 # Only confirm transfers that are less than 20 minutes old
+
+
+assets:
+  role_choices: ['admin','manager','viewer']
