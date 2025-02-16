@@ -7,6 +7,8 @@ User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
     account_number = serializers.CharField(required=False, allow_blank=True)
+    first_name = serializers.CharField(required=True)
+    last_name = serializers.CharField(required=True)
     bank = serializers.CharField(required=False, allow_blank=True)
     password = serializers.CharField(write_only=True, style={'input_type': 'password'})
     confirm_password = serializers.CharField(write_only=True, style={'input_type': 'password'})
