@@ -13,6 +13,9 @@ PAYMENT_STATUS_CHOICES = [(status[0], status[1]) for status in conf['core']['pay
 ASSET_TYPE_CHOICES = [(asset[0], asset[1]) for asset in conf['core']['asset_type_choices']]
 EVENT_TYPE_CHOICES = [(event[0], event[1]) for event in conf['core']['event_type_choices']]
 
+RESET_PASSWORD_COOLDOWN = conf['auth']['reset_password_cooldown'] or 60
+RESET_TOKEN_VALIDITY = conf['auth']['reset_token_validity'] or 600
+
 
 # ------------- views.py variables -----------------
 transfer_policy_config =  conf['core']['transfer_policy_config']
