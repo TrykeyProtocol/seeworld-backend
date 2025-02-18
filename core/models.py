@@ -1,8 +1,11 @@
+import random
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
 from django.utils import timezone
 from django.utils.timezone import now
+from datetime import timedelta
 
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -44,6 +47,21 @@ class User(AbstractUser):
     def __str__(self):
         return self.email
 
+
+
+class PasswordResetToken(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    token = models.CharField(max_length=4)  # 4-digit code
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def is_expired(self):
+        """ Check if the token is expired (valid for 10 minutes). """
+        return now() > self.created_at + timedelta(seconds=RESET_TOKEN_VALIDITY)
+
+    @staticmethod
+    def generate_token():
+        """ Generate a random 4-digit token """
+        return str(random.randint(1000, 9999))
 
 class Transaction(models.Model):
     name = models.CharField(max_length=255)

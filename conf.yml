@@ -37,6 +37,8 @@ core:
         charge: 50
     pending_transfer_expiry: 1200 # Only confirm transfers that are less than 20 minutes old
 
-
+auth:
+  reset_password_cooldown: 60 #seconds
+  reset_token_validity: 600 #seconds
 assets:
   role_choices: ['admin','manager','viewer']
