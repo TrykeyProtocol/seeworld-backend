@@ -1,6 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+
 from django.utils import timezone
+from django.utils.timezone import now
+
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from geopy.distance import geodesic
@@ -21,6 +24,18 @@ class User(AbstractUser):
     bank_currency = models.CharField(max_length=20, blank=True, null=True, default='NGN')
     bank_account_number = models.CharField(max_length=10, blank=True, null=True)
     bank_account_name = models.CharField(max_length=30, blank=True, null=True)
+
+    last_password_reset_request = models.DateTimeField(null=True, blank=True)
+
+    def can_request_reset(self):
+        """
+        Checks if the user can request another password reset based on time.
+        Prevents spam requests.
+        """
+        if self.last_password_reset_request:
+            time_diff = now() - self.last_password_reset_request
+            return time_diff.total_seconds() > RESET_PASSWORD_COOLDOWN
+        return True
 
     def save(self, *args, **kwargs):
         self.username = self.email
