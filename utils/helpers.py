@@ -105,3 +105,5 @@ def hmac_sha512(key:str, message:bytes) -> str:
     key = key.encode('utf-8')
     hashed_payload = hmac.new(key, message, digestmod=hashlib.sha512).hexdigest()
     return hashed_payload
+
+# -----------  Auth helpers -------------

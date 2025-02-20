@@ -14,7 +14,7 @@ from django.db.models import Count, Case, When, Value, IntegerField
 
 from .serializers import AssetSerializer, AssociateUserSerializer, HotelRoomSerializer, VehicleSerializer, DisassociateUserSerializer, AssetUserSerializer, TransactionHistorySerializer
 from core.models import Asset, Role, User, HotelRoom, Vehicle, Transaction
-from core.permissions import IsAdmin, IsManager
+from utils.permissions import IsAdmin, IsManager
 from assets import ROLE_CHOICES
 
 

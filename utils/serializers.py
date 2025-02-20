@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Transaction
+from ..core.models import User, Transaction
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 

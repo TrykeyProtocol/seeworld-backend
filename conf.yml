@@ -40,5 +40,6 @@ core:
 auth:
   reset_password_cooldown: 60 #seconds
   reset_token_validity: 600 #seconds
+  from_email: admin@trykeyprotocol.com
 assets:
   role_choices: ['admin','manager','viewer']

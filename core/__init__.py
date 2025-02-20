@@ -15,6 +15,7 @@ EVENT_TYPE_CHOICES = [(event[0], event[1]) for event in conf['core']['event_type
 
 RESET_PASSWORD_COOLDOWN = conf['auth']['reset_password_cooldown'] or 60
 RESET_TOKEN_VALIDITY = conf['auth']['reset_token_validity'] or 600
+FROM_EMAIL = conf['auth']['from_email']
 
 
 # ------------- views.py variables -----------------
