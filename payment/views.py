@@ -17,10 +17,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from utils.helpers import *
-from utils.payment import *
+from .helpers import *
 from core import *
 
-from .models import (
+from core.models import (
     User,
     Asset,
     HotelRoom,
@@ -269,7 +269,7 @@ class TransactionListView(APIView):
     def get_queryset(self):
         user = self.request.user
         
-        if IsAdmin():
+        if IsAdmin().has_permission():
             queryset = Transaction.objects.all()
         elif IsManager():
             queryset = Transaction.objects.filter(asset__manager=user)

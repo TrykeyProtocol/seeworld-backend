@@ -3,7 +3,6 @@ import logging
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
-from django.core.mail import send_mail
 from django.db import IntegrityError
 from django.db.models import Q, F
 from django.http import JsonResponse, HttpResponse
@@ -16,10 +15,10 @@ from django.utils.datetime_safe import datetime
 
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter
-from rest_framework.permissions import IsAuthenticated, AllowAny
 
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from utils.helpers import *  
-from utils.payment import *  
 from core import *  
 
 from .models import (
@@ -28,23 +27,17 @@ from .models import (
     HotelRoom,
     Vehicle,
     Transaction,
-    PaystackTransferRecipient,
-    PasswordResetToken,
+    UserToken,
 )
 
-from ..utils.serializers import UserSerializer, TransactionSerializer
-from ..utils.permissions import IsAdmin, IsManager
-
+from utils.serializers import UserSerializer
+from utils.permissions import IsAdmin, IsManager
 
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 User = get_user_model()
-
-def handle_error(e, custom_message=None):
-    logger.error(str(e), exc_info=True)
-    return Response({'error': custom_message or 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # ---------- AUTH VIEWS ----------
 
@@ -72,52 +65,83 @@ class RegisterView(APIView):
 
 class ForgotPasswordView(APIView):
     """
-    Handles password reset requests by generating a 4-digit token and emailing it to the user.
+    Handles password reset requests by generating a 6-digit token and emailing it to the user.
     """
+
     def post(self, request):
         email = request.data.get("email")
-        try:
-            user = get_object_or_404(User, email=email)
-            if not user.can_request_reset():
-                return Response({"error": "Too many requests. Try again later."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
-            
-            PasswordResetToken.objects.filter(user=user).delete()
-            token = PasswordResetToken.objects.create(user=user, token=PasswordResetToken.generate_token())
-            user.last_password_reset_request = timezone.now()
-            user.save()
+        user = get_object_or_404(User, email=email)
 
-            send_mail(
-                "Password Reset Code",
-                f"Your password reset code is: {token.token}",
-                "no-reply@yourdomain.com",
-                [user.email],
-                fail_silently=False,
-            )
-            return Response({"message": "A reset code has been sent to your email."}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return self.handle_error(e, "Error processing password reset")
+        if not user.can_request_reset():
+            return Response({"error": "Too many requests. Try again later."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+        # Delete any existing reset tokens for the user
+        UserToken.objects.filter(user=user, token_type="password_reset").delete()
+
+        token = UserToken.objects.create(user=user, token_type="password_reset")
+        user.last_password_reset_request = timezone.now()
+        user.save()
+
+        # NOTE: send_mail is supposed to be the django function, but due to google smtp constraints I will reimplement a function that uses sendgrid instead
+        send_user_email(
+            user.email,
+            "Password Reset Code",
+            f"Your password reset code is: {token.token}",
+            FROM_EMAIL,
+        )
+
+        return Response({"message": "A reset code has been sent to your email."}, status=status.HTTP_200_OK)
+
 
 class ResetPasswordView(APIView):
     """
     Verifies the token and allows the user to reset their password.
     """
+
     def post(self, request):
         email, token, new_password = request.data.get("email"), request.data.get("token"), request.data.get("new_password")
-        try:
-            user = get_object_or_404(User, email=email)
-            reset_token = PasswordResetToken.objects.filter(user=user, token=token).first()
+        user = get_object_or_404(User, email=email)
 
-            if not reset_token or reset_token.is_expired():
-                return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+        # Fetch the reset token
+        reset_token = UserToken.objects.filter(user=user, token=token, token_type="password_reset").first()
 
-            user.password = make_password(new_password)
-            user.save()
-            reset_token.delete()
+        if not reset_token or reset_token.expires_at < timezone.now():
+            return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
 
-            return Response({"message": "Password reset successful."}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return self.handle_error(e, "Error resetting password")
+        # Update user password
+        user.password = make_password(new_password)
+        user.save()
 
+        # Delete the token after successful reset
+        reset_token.delete()
+
+        return Response({"message": "Password reset successful."}, status=status.HTTP_200_OK)
+
+class VerifyEmailView(APIView):
+    """
+    Verifies a user's email address using a 6-digit token.
+    """
+
+    def post(self, request):
+        email, token = request.data.get("email"), request.data.get("token")
+        user = get_object_or_404(User, email=email)
+
+        # Fetch the verification token
+        email_token = UserToken.objects.filter(user=user, token=token, token_type="email_verification").first()
+
+        if not email_token or email_token.expires_at < timezone.now():
+            return Response({"error": "Invalid or expired token."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Mark the user as verified
+        user.is_email_verified = True
+        user.save()
+
+        # Delete the token after successful verification
+        email_token.delete()
+
+        return Response({"message": "Email verification successful."}, status=status.HTTP_200_OK)
+
+# ---------- USER VIEWS ----------
 class ProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -132,9 +156,9 @@ class ProfileView(APIView):
             return Response({'message': 'Profile updated successfully.'})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# ---------- USER VIEWS ----------
-
 class UserDataView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAdmin]  
     def get(self, request, *args, **kwargs):
         try:
             users = User.objects.all()
