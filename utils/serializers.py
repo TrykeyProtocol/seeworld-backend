@@ -14,12 +14,14 @@ class UserSerializer(serializers.ModelSerializer):
     confirm_password = serializers.CharField(write_only=True, style={'input_type': 'password'})
     avatar = serializers.ImageField(required=False)
 
+    is_email_verified = serializers.BooleanField(read_only=True)
+
     class Meta:
         model = User
         fields = ['first_name', 'last_name',
                 'email', 'password',
                 'confirm_password', 'account_number',
-                  'bank', 'avatar']
+                  'bank', 'avatar', 'is_email_verified']
 
     def validate(self, data):
         if data.get('account_number') and not data.get('bank'):
