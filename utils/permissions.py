@@ -1,5 +1,5 @@
 from rest_framework import permissions, authentication
-from core.models import Role
+from core.models import Role, Asset
 from rest_framework import exceptions
 from django.contrib.auth import get_user_model
 import os
@@ -31,14 +31,16 @@ class IsAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
-
-        asset_number = view.kwargs.get('asset_number')
+        asset_number = request.query_params.get('asset_number')
         if asset_number is None:
             return False
-
+        else:
+            asset = Asset.objects.get(id=asset_number)
+            if not asset:
+                return False
         return Role.objects.filter(
             user=request.user, 
-            asset_id=asset_number, 
+            asset=asset, 
             role='admin'
         ).exists()
 
