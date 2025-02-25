@@ -17,6 +17,9 @@ urlpatterns = [
     path('auth/me/', ProfileView.as_view(), name='profile'),
     path('user-data/', UserDataView.as_view(), name='user-data'),
     path('token/', TokenObtainPairView.as_view(permission_classes=[AllowAny]), name='token_obtain_pair'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
+    path('auth/forgot-password/', ForgotPasswordView.as_view(), name='forgot-password'),
+    path('auth/reset-password/', ResetPasswordView.as_view(), name='reset-password'),
+    path('auth/verify-email/', VerifyEmailView.as_view(), name='verify-email'),
     
     ]
