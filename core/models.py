@@ -30,6 +30,8 @@ class User(AbstractUser):
 
     last_password_reset_request = models.DateTimeField(null=True, blank=True)
 
+    is_email_verified = models.BooleanField(default=False)  # Track if the email is verified
+
     def can_request_reset(self):
         """
         Checks if the user can request another password reset based on time.
@@ -49,19 +51,30 @@ class User(AbstractUser):
 
 
 
-class PasswordResetToken(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    token = models.CharField(max_length=4)  # 4-digit code
+class UserToken(models.Model):
+    TOKEN_TYPES = [
+        ('email_verification', 'Email Verification'),
+        ('password_reset', 'Password Reset'),
+    ]
+
+    user = models.ForeignKey("core.User", on_delete=models.CASCADE, related_name="tokens")
+    token = models.CharField(max_length=6, unique=True)  # Ensure token uniqueness
+    token_type = models.CharField(max_length=20, choices=TOKEN_TYPES)
     created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
 
-    def is_expired(self):
-        """ Check if the token is expired (valid for 10 minutes). """
-        return now() > self.created_at + timedelta(seconds=RESET_TOKEN_VALIDITY)
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = f"{random.randint(100000, 999999)}"  # 6-digit numeric token
 
-    @staticmethod
-    def generate_token():
-        """ Generate a random 4-digit token """
-        return str(random.randint(1000, 9999))
+        if not self.expires_at:
+            self.expires_at = now() + timedelta(minutes=10)  # Set 10-minute expiration
+
+        # Ensure only one active token per user per type
+        UserToken.objects.filter(user=self.user, token_type=self.token_type).delete()
+
+        super().save(*args, **kwargs)
+
 
 class Transaction(models.Model):
     name = models.CharField(max_length=255)
