@@ -67,7 +67,7 @@ class ForgotPasswordView(APIView):
     """
     Handles password reset requests by generating a 6-digit token and emailing it to the user.
     """
-
+    permission_classes = [AllowAny]
     def post(self, request):
         email = request.data.get("email")
         user = get_object_or_404(User, email=email)
@@ -97,7 +97,7 @@ class ResetPasswordView(APIView):
     """
     Verifies the token and allows the user to reset their password.
     """
-
+    permission_classes = [AllowAny]
     def post(self, request):
         email, token, new_password = request.data.get("email"), request.data.get("token"), request.data.get("new_password")
         user = get_object_or_404(User, email=email)
@@ -117,11 +117,38 @@ class ResetPasswordView(APIView):
 
         return Response({"message": "Password reset successful."}, status=status.HTTP_200_OK)
 
+class SendEmailVerificationView(APIView):
+    """
+    Sends an email verification token to the user.
+    """
+    permission_classes = [IsAuthenticated]
+    def post(self, request):
+        email = request.data.get("email")
+        user = get_object_or_404(User, email=email)
+
+        # Prevent spamming by deleting existing email verification tokens
+        UserToken.objects.filter(user=user, token_type="email_verification").delete()
+
+        # Generate a new email verification token
+        token = UserToken.objects.create(user=user, token_type="email_verification")
+
+        # Send verification email
+        send_user_email(
+            user.email,
+            "Email Verification Code",
+            f"Your email verification code is: {token.token}",
+            FROM_EMAIL,
+        )
+
+        return Response({"message": "A verification code has been sent to your email."}, status=status.HTTP_200_OK)
+
+
 class VerifyEmailView(APIView):
     """
     Verifies a user's email address using a 6-digit token.
     """
-
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
     def post(self, request):
         email, token = request.data.get("email"), request.data.get("token")
         user = get_object_or_404(User, email=email)
