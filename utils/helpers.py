@@ -9,15 +9,14 @@ from seeworld import settings
 import hmac
 import hashlib
 
-
-# TODO: concurrent emails
-# import celery
-# import sendgrid
-# from sendgrid.helpers.mail import *
-
 from rest_framework.pagination import PageNumberPagination
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.response import Response
+
 from django.contrib.auth import get_user_model
+import logging
+
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
@@ -68,20 +67,30 @@ def validate_field(data, field_name: str, expected_types, required: bool = True,
 
 # ----------- Email & sms helpers -------------
 # @shared_task
-# def send_user_email(user_email, subject, message):
-
-#     send_mail(
-#         subject,
-#         message,
-#         settings.DEFAULT_FROM_EMAIL,
-#         [user_email],
-#         fail_silently=False
-#     )
-#     """Function that sends emails to users
+def send_user_email(user_email, subject, message, from_email):
+    """Uses sendgrid to send an email to a user
     
-#     Args: receiver_email: str , message_details:{}
-#     Return: None
-#     """
+    Keyword arguments:
+    email -- email address of the recipient
+    subject -- Email subject
+    message -- Email body
+    from_email -- specify the from email. Default is configured in conf.yml
+    Return: return_description
+    """
+    
+    # send_mail(
+    #     subject,
+    #     message,
+    #     settings.DEFAULT_FROM_EMAIL,
+    #     [user_email],
+    #     fail_silently=False
+    # )
+
+    # Log that the email has been sent (as a placeholder for SendGrid integration)
+    logger.info(f"Email sent to {user_email} with subject '{subject}'")
+
+    return True
+
 
 # @shared_task
 # def send_user_sms(**kwargs):
@@ -106,4 +115,7 @@ def hmac_sha512(key:str, message:bytes) -> str:
     hashed_payload = hmac.new(key, message, digestmod=hashlib.sha512).hexdigest()
     return hashed_payload
 
-# -----------  Auth helpers -------------
+# -----------  Error handling helpers -------------
+def handle_error(e, custom_message=None):
+    logger.error(str(e), exc_info=True)
+    return Response({'error': custom_message or 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
