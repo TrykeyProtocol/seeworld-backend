@@ -8,6 +8,7 @@ from seeworld import settings
 
 import hmac
 import hashlib
+import requests
 
 from rest_framework.pagination import PageNumberPagination
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -119,3 +120,43 @@ def hmac_sha512(key:str, message:bytes) -> str:
 def handle_error(e, custom_message=None):
     logger.error(str(e), exc_info=True)
     return Response({'error': custom_message or 'An unexpected error occurred.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# -----------  Google maps -------------
+def get_street_name(lat, lon, api_key):
+    """
+    Retrieves the street name if available; otherwise, returns the formatted address components (Lugbe and Kabusa) for a given latitude and longitude using the Google Maps Geocoding API.
+    
+    :param lat: Latitude of the location.
+    :param lon: Longitude of the location.
+    :param api_key: Your Google Maps API key.
+    :return: A string containing the street name if found, otherwise Lugbe and Kabusa.
+    """
+    url = f"https://maps.googleapis.com/maps/api/geocode/json?latlng={lat},{lon}&key={api_key}"
+    response = requests.get(url)
+    data = response.json()
+    
+    if data["status"] == "OK":
+        street_name = None
+        locality = None
+        administrative_area = None
+        
+        for result in data["results"]:
+            for component in result["address_components"]:
+                if "route" in component["types"]:
+                    street_name = component["long_name"]
+                if "locality" in component["types"]:
+                    locality = component["long_name"]
+                if "administrative_area_level_3" in component["types"]:
+                    administrative_area = component["long_name"]
+        
+        if street_name and street_name.lower() != "unnamed road":
+            return street_name
+        elif locality and administrative_area:
+            return f"{locality}, {administrative_area}"
+        elif locality:
+            return locality
+        elif administrative_area:
+            return administrative_area
+    
+    return None
+
