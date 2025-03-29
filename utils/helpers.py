@@ -5,10 +5,12 @@ from django.core.validators import validate_email
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
 from seeworld import settings
+from google.cloud import translate_v2 as translate
 
 import hmac
 import hashlib
 import requests
+import os
 
 from rest_framework.pagination import PageNumberPagination
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -159,4 +161,105 @@ def get_street_name(lat, lon, api_key):
             return administrative_area
     
     return None
+
+# ----------- Translation helpers -------------
+def translate_chinese_to_english(message: str) -> str:
+    """
+    Translates Chinese text to English using Google Cloud Translation API
+    
+    Args:
+        message (str): The Chinese text to translate
+        
+    Returns:
+        str: The translated English text
+        
+    Raises:
+        Exception: If translation fails
+    """
+    try:
+        # Initialize the translation client
+        translate_client = translate.Client()
+        
+        # Perform the translation
+        result = translate_client.translate(
+            message,
+            target_language='en',
+            source_language='zh'
+        )
+        
+        return result['translatedText']
+        
+    except Exception as e:
+        logger.error(f"Translation error: {str(e)}", exc_info=True)
+        raise Exception("Failed to translate text")
+
+def translate_api_response(response: dict) -> dict:
+    """
+    Translates the 'msg' field in an API response from Chinese to English while preserving the response structure
+    
+    Args:
+        response (dict): The API response containing Chinese message in 'msg' field
+        
+    Returns:
+        dict: The API response with translated message in 'msg' field
+        
+    Raises:
+        Exception: If translation fails
+    """
+    try:
+        # Create a copy of the response to avoid modifying the original
+        translated_response = response.copy()
+        
+        # Translate only the msg field if it exists
+        if 'msg' in translated_response:
+            translated_response['msg'] = translate_chinese_to_english(translated_response['msg'])
+            
+        return translated_response
+        
+    except Exception as e:
+        logger.error(f"API response translation error: {str(e)}", exc_info=True)
+        raise Exception("Failed to translate API response")
+
+def get_vehicle_movement_status(car_id: str, token: str) -> dict:
+    """
+    Gets vehicle movement status from WhatsGPS API
+    
+    Args:
+        car_id (str): The vehicle ID from WhatsGPS
+        token (str): The authentication token
+        
+    Returns:
+        dict: Movement status data or error response
+    """
+    try:
+        url = "https://www.whatsgps.com/car/getCarAndStatus.do"
+        params = {
+            "token": token,
+            "carId": car_id
+        }
+        
+        response = requests.get(url, params=params)
+        response.raise_for_status()  # Raises an HTTPError for bad responses
+        
+        data = response.json()
+        
+        # Check for API error response
+        if data.get('code') != '0':
+            logger.error(f"WhatsGPS API error: {data.get('msg')}")
+            return {
+                "status": "error",
+                "message": data.get('msg', 'Unknown error')
+            }
+            
+        return {
+            "status": "success",
+            "data": data
+        }
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error fetching vehicle status: {str(e)}", exc_info=True)
+        return {
+            "status": "error",
+            "message": "Failed to fetch vehicle status"
+        }
 

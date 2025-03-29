@@ -50,7 +50,6 @@ class User(AbstractUser):
         return self.email
 
 
-
 class UserToken(models.Model):
     TOKEN_TYPES = [
         ('email_verification', 'Email Verification'),
@@ -236,6 +235,7 @@ class Vehicle(models.Model):
     status = models.BooleanField(default=False)
     activation_timestamp = models.DateTimeField(blank=True, null=True)
     expiry_timestamp = models.DateTimeField(blank=True, null=True)
+    whatsgps_id = models.CharField(max_length=50, blank=True, null=True, help_text="WhatsGPS car ID for tracking")
 
     class Meta:
         unique_together = ['fleet', 'vehicle_number']
